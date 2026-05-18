@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+<title>ChessLens — Professional Game Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #16213e;
+    --surface3: #0f3460;
+    --border: rgba(255,255,255,0.08);
+    --accent: #e94560;
+    --accent2: #ff6b6b;
+    --accent3: #c4e0fa;
+    --green: #0feba0;
+    --red: #ff6b6b;
+    --yellow: #ffd93d;
+    --blue: #6bcbff;
+    --text: #eee;
+    --text-dim: #aaa;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 30px;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--surface), var(--surface2));
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+
+  .logo h1 {
+    font-size: 24px;
+    font-weight: 800;
+  }
+
+  .logo span {
+    color: var(--accent);
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  /* Search */
+  .search-card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .search-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .search-box {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .search-box input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 14px 18px;
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 16px;
+    outline: none;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .search-box input:focus {
+    border-color: var(--accent);
+  }
+
+  .search-box button {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    padding: 14px 28px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 14px;
+    transition: transform 0.2s;
+  }
+
+  .search-box button:active {
+    transform: scale(0.98);
+  }
+
+  /* Games Grid */
+  .games-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .game-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .game-item.active {
+    border-color: var(--accent);
+    background: rgba(233, 69, 96, 0.1);
+  }
+
+  .result-badge {
+    width: 55px;
+    height: 55px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .win { background: rgba(15, 235, 160, 0.15); color: var(--green); border: 1px solid rgba(15, 235, 160, 0.3); }
+  .loss { background: rgba(255, 107, 107, 0.15); color: var(--red); border: 1px solid rgba(255, 107, 107, 0.3); }
+  .draw { background: rgba(255, 217, 61, 0.15); color: var(--yellow); border: 1px solid rgba(255, 217, 61, 0.3); }
+
+  .game-info {
+    flex: 1;
+  }
+
+  .players {
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .analyze-btn {
+    background: rgba(233, 69, 96, 0.2);
+    border: 1px solid var(--accent);
+    padding: 8px 16px;
+    border-radius: 10px;
+    color: var(--accent);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Analysis Panel */
+  .analysis-panel {
+    background: var(--surface);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-top: 20px;
+  }
+
+  .analysis-header {
+    background: var(--surface2);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .analysis-title {
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  .analysis-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* Board Section */
+  .board-section {
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .board-container {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .board {
+    width: 100%;
+    aspect-ratio: 1;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+
+  .square {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: min(6vw, 40px);
+    cursor: pointer;
+  }
+
+  .square.light { background: #f0d9b5; }
+  .square.dark { background: #b58863; }
+
+  .square.highlight-from { background: rgba(233, 69, 96, 0.6) !important; }
+  .square.highlight-to { background: rgba(233, 69, 96, 0.4) !important; }
+  .square.best-hint { background: rgba(15, 235, 160, 0.5) !important; }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .ctrl {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .move-counter {
+    background: var(--surface2);
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* Info Panel */
+  .info-panel {
+    padding: 0 20px 20px 20px;
+  }
+
+  .elo-box {
+    background: var(--surface2);
+    border-radius: 14px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  .elo-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .elo-player {
+    text-align: center;
+    flex: 1;
+  }
+
+  .elo-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .elo-rating {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    margin-top: 5px;
+  }
+
+  /* Accuracy Bar */
+  .accuracy-item {
+    margin-bottom: 12px;
+  }
+
+  .accuracy-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+
+  .accuracy-bar {
+    height: 8px;
+    background: var(--surface3);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .accuracy-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s;
+  }
+
+  /* Move List */
+  .moves-container {
+    background: var(--surface2);
+    border-radius: 14px;
+    padding: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+
+  .move-row {
+    display: flex;
+    gap: 8px;
+    padding: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .move-number {
+    color: var(--text-dim);
+    min-width: 35px;
+  }
+
+  .move-san {
+    flex: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  .move-san.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  .move-san.best { color: var(--green); }
+  .move-san.mistake { color: #ff9f4a; }
+  .move-san.blunder { color: var(--red); }
+
+  /* Loading */
+  .loading {
+    text-align: center;
+    padding: 40px;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 15px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .error {
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid var(--red);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--red);
+    font-size: 13px;
+    display: none;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+  }
+
+  .tab {
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .tab-content {
+    display: none;
+  }
+
+  .tab-content.active {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .analysis-body {
+      display: flex;
+    }
+    .board-section {
+      flex: 1.2;
+    }
+    .info-panel {
+      flex: 1;
+      padding-right: 20px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">♛</div>
+      <h1>Chess<span>Lens</span></h1>
+    </div>
+    <div class="status">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Engine Ready</span>
+    </div>
+  </div>
+
+  <div class="search-card">
+    <div class="search-label">CHESS.COM USERNAME</div>
+    <div class="search-box">
+      <input type="text" id="username" placeholder="contoh: magnuscarlsen, hikaru" autocomplete="off">
+      <button onclick="fetchUserGames()">📊 FETCH GAMES</button>
+    </div>
+  </div>
+
+  <div class="error" id="errorMsg"></div>
+
+  <div id="gamesContainer"></div>
+  <div id="analysisContainer"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script>
+// ==================== CHESS LENS FULL VERSION ====================
+// Piece values for evaluation
+const PIECE_VALUES = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+const PIECES = {
+  wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
+  bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
+};
+
+// Global state
+let currentGames = [];
+let currentGameData = null;
+let positions = [];
+let moveQualities = [];
+let currentMoveIndex = 0;
+let analysisResults = [];
+
+// ==================== FETCH GAMES ====================
+async function fetchUserGames() {
+  const username = document.getElementById('username').value.trim().toLowerCase();
+  if (!username) {
+    showError('Masukkan username Chess.com');
+    return;
+  }
+
+  showLoading(true);
+  hideError();
+
+  try {
+    // Fetch archives
+    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+    const archivesUrl = `https://api.chess.com/pub/player/${username}/games/archives`;
+    const archivesRes = await fetch(proxyUrl + encodeURIComponent(archivesUrl));
+    
+    if (!archivesRes.ok) throw new Error('User tidak ditemukan');
+    
+    const archivesData = await archivesRes.json();
+    const archives = archivesData.archives;
+    
+    if (!archives || archives.length === 0) throw new Error('Tidak ada archive game');
+    
+    // Get last 3 months
+    let allGames = [];
+    const lastMonths = archives.slice(-3).reverse();
+    
+    for (const archiveUrl of lastMonths) {
+      const gamesRes = await fetch(proxyUrl + encodeURIComponent(archiveUrl));
+      if (gamesRes.ok) {
+        const gamesData = await gamesRes.json();
+        const completedGames = gamesData.games.filter(g => 
+          g.pgn && g.rules === 'chess' && 
+          ['win', 'loss', 'draw', 'checkmated', 'resigned', 'timeout', 'stalemate'].includes(g.white.result || g.black.result)
+        );
+        allGames.push(...completedGames);
+        if (allGames.length >= 10) break;
+      }
+    }
+    
+    if (allGames.length === 0) throw new Error('Tidak ada game completed');
+    
+    currentGames = allGames.slice(0, 8);
+    renderGamesList(username);
+    
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+function renderGamesList(username) {
+  const container = document.getElementById('gamesContainer');
+  container.innerHTML = `
+    <div style="margin-bottom: 15px;">
+      <div style="font-size: 12px; color: #aaa; margin-bottom: 10px;">📋 LAST ${currentGames.length} GAMES</div>
+      <div class="games-grid" id="gamesGrid"></div>
+    </div>
+  `;
+  
+  const grid = document.getElementById('gamesGrid');
+  grid.innerHTML = '';
+  
+  currentGames.forEach((game, idx) => {
+    const isWhite = game.white.username.toLowerCase() === username;
+    const mySide = isWhite ? game.white : game.black;
+    const opponent = isWhite ? game.black : game.white;
+    const result = mySide.result;
+    
+    let resultText = 'DRAW';
+    let resultClass = 'draw';
+    if (result === 'win') { resultText = 'WIN'; resultClass = 'win'; }
+    else if (result === 'loss' || result === 'checkmated' || result === 'resigned' || result === 'timeout') { resultText = 'LOSS'; resultClass = 'loss'; }
+    
+    const date = game.end_time ? new Date(game.end_time * 1000).toLocaleDateString() : 'Unknown';
+    const timeClass = game.time_class || 'standard';
+    
+    const gameDiv = document.createElement('div');
+    gameDiv.className = 'game-item';
+    gameDiv.innerHTML = `
+      <div class="result-badge ${resultClass}">${resultText}</div>
+      <div class="game-info">
+        <div class="players">${mySide.username} (${mySide.rating || '?'}) vs ${opponent.username} (${opponent.rating || '?'})</div>
+        <div class="meta">${timeClass.toUpperCase()} • ${date} • ${isWhite ? 'White' : 'Black'}</div>
+      </div>
+      <button class="analyze-btn" onclick="analyzeGame(${idx}, event)">🔍 ANALYZE</button>
+    `;
+    gameDiv.onclick = (e) => { if (!e.target.classList.contains('analyze-btn')) selectGame(idx, gameDiv); };
+    grid.appendChild(gameDiv);
+  });
+}
+
+function selectGame(idx, element) {
+  document.querySelectorAll('.game-item').forEach(el => el.classList.remove('active'));
+  element.classList.add('active');
+}
+
+// ==================== ANALYZE GAME ====================
+async function analyzeGame(idx, event) {
+  if (event) event.stopPropagation();
+  
+  currentGameData = currentGames[idx];
+  
+  // Parse PGN
+  const chess = new Chess();
+  if (!chess.load_pgn(currentGameData.pgn)) {
+    showError('Gagal mem-parsing game');
+    return;
+  }
+  
+  // Get all positions
+  const history = chess.history({ verbose: true });
+  positions = ['rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'];
+  const tempChess = new Chess();
+  for (const move of history) {
+    tempChess.move(move);
+    positions.push(tempChess.fen());
+  }
+  
+  currentMoveIndex = 0;
+  moveQualities = [];
+  analysisResults = [];
+  
+  // Run analysis
+  await runFullAnalysis(history);
+  
+  // Render UI
+  renderAnalysisPanel();
+  renderBoard(positions[0]);
+  renderMoveList(history);
+  updateMoveCounter();
+}
+
+async function runFullAnalysis(history) {
+  const total = positions.length;
+  let prevEval = 0;
+  
+  for (let i = 0; i < total; i++) {
+    const fen = positions[i];
+    const evalScore = evaluatePosition(fen);
+    analysisResults.push(evalScore);
+    
+    if (i > 0) {
+      const delta = Math.abs(evalScore - prevEval);
+      let quality = 'good';
+      if (delta < 0.3) quality = 'best';
+      else if (delta < 0.7) quality = 'good';
+      else if (delta < 1.3) quality = 'mistake';
+      else quality = 'blunder';
+      moveQualities.push(quality);
+    }
+    prevEval = evalScore;
+    
+    // Update progress
+    document.getElementById('statusText').innerHTML = `Analyzing: ${i}/${total}`;
+    await sleep(10);
+  }
+  
+  document.getElementById('statusText').innerHTML = 'Analysis Complete';
+}
+
+function evaluatePosition(fen) {
+  // Material-based evaluation with position bonuses
+  const parts = fen.split(' ');
+  const boardPart = parts[0];
+  const sideToMove = parts[1];
+  
+  let whiteScore = 0, blackScore = 0;
+  let rank = 0, file = 0;
+  
+  for (const ch of boardPart) {
+    if (ch === '/') {
+      rank++;
+      file = 0;
+      continue;
+    }
+    if (ch >= '1' && ch <= '8') {
+      file += parseInt(ch);
+      continue;
+    }
+    const isWhite = ch === ch.toUpperCase();
+    const piece = ch.toLowerCase();
+    const value = PIECE_VALUES[piece] || 0;
+    
+    // Center control bonus
+    const centerBonus = (rank >= 2 && rank <= 5 && file >= 2 && file <= 5) ? 0.1 : 0;
+    
+    if (isWhite) whiteScore += value + centerBonus;
+    else blackScore += value + centerBonus;
+    
+    file++;
+  }
+  
+  let score = (whiteScore - blackScore);
+  
+  // Apply side to move advantage
+  if (sideToMove === 'w') score += 0.2;
+  else score -= 0.2;
+  
+  return Math.max(-8, Math.min(8, score));
+}
+
+function renderAnalysisPanel() {
+  const container = document.getElementById('analysisContainer');
+  
+  const white = currentGameData.white;
+  const black = currentGameData.black;
+  const isWhiteWin = white.result === 'win';
+  const isBlackWin = black.result === 'win';
+  const resultText = isWhiteWin ? `${white.username} wins` : (isBlackWin ? `${black.username} wins` : 'Draw');
+  
+  container.innerHTML = `
+    <div class="analysis-panel">
+      <div class="analysis-header">
+        <div class="analysis-title">${white.username} vs ${black.username}</div>
+        <div class="analysis-sub">${currentGameData.time_class || 'Standard'} • ${resultText}</div>
+      </div>
+      
+      <div class="analysis-body">
+        <div class="board-section">
+          <div class="board-container">
+            <div class="board" id="chessBoard"></div>
+            <div class="controls">
+              <button class="ctrl" onclick="goToMove(0)">⏮️</button>
+              <button class="ctrl" onclick="goToMove(currentMoveIndex-1)">◀</button>
+              <div class="move-counter" id="moveCounterDisplay">Move 0/${positions.length-1}</div>
+              <button class="ctrl" onclick="goToMove(currentMoveIndex+1)">▶</button>
+              <button class="ctrl" onclick="goToMove(positions.length-1)">⏭️</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="info-panel">
+          <div class="elo-box">
+            <div class="elo-row">
+              <div class="elo-player">
+                <div class="elo-name">⬜ ${white.username}</div>
+                <div class="elo-rating" style="color:#fff">${white.rating || '?'}</div>
+              </div>
+              <div style="color:#aaa">VS</div>
+              <div class="elo-player">
+                <div class="elo-name">⬛ ${black.username}</div>
+                <div class="elo-rating" style="color:#aaa">${black.rating || '?'}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="tabs" id="analysisTabs">
+            <button class="tab active" onclick="switchTab('stats')">📊 STATS</button>
+            <button class="tab" onclick="switchTab('moves')">📋 MOVES</button>
+          </div>
+          
+          <div id="statsTab" class="tab-content active">
+            <div class="stats-grid" id="statsGrid"></div>
+            <div class="accuracy-item">
+              <div class="accuracy-header">
+                <span>⬜ WHITE ACCURACY</span>
+                <span id="whiteAccVal">0%</span>
+              </div>
+              <div class="accuracy-bar">
+                <div class="accuracy-fill" id="whiteAccBar" style="width:0%; background: #0feba0"></div>
+              </div>
+            </div>
+            <div class="accuracy-item">
+              <div class="accuracy-header">
+                <span>⬛ BLACK ACCURACY</span>
+                <span id="blackAccVal">0%</span>
+              </div>
+              <div class="accuracy-bar">
+                <div class="accuracy-fill" id="blackAccBar" style="width:0%; background: #ff6b6b"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="movesTab" class="tab-content">
+            <div class="moves-container" id="movesListContainer"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  updateStats();
+  updateMoveListDisplay();
+}
+
+function renderBoard(fen) {
+  const board = document.getElementById('chessBoard');
+  if (!board) return;
+  
+  board.innerHTML = '';
+  const chess = new Chess(fen);
+  const boardState = chess.board();
+  
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const square = document.createElement('div');
+      const isLight = (row + col) % 2 === 0;
+      square.className = `square ${isLight ? 'light' : 'dark'}`;
+      
+      const piece = boardState[row][col];
+      if (piece) {
+        const key = piece.color + piece.type.toUpperCase();
+        square.textContent = PIECES[key] || '';
+      }
+      
+      square.dataset.row = row;
+      square.dataset.col = col;
+      board.appendChild(square);
+    }
+  }
+  
+  // Add highlights for last move
+  if (currentMoveIndex > 0) {
+    const chessHist = new Chess();
+    chessHist.load_pgn(currentGameData.pgn);
+    const hist = chessHist.history({ verbose: true });
+    const lastMove = hist[currentMoveIndex - 1];
+    if (lastMove) {
+      highlightSquare(lastMove.from, 'highlight-from');
+      highlightSquare(lastMove.to, 'highlight-to');
+    }
+  }
+}
+
+function highlightSquare(square, className) {
+  const files = 'abcdefgh';
+  const file = files.indexOf(square[0]);
+  const rank = 8 - parseInt(square[1]);
+  const squares = document.querySelectorAll('.square');
+  const index = rank * 8 + file;
+  if (squares[index]) squares[index].classList.add(className);
+}
+
+function renderMoveList(history) {
+  const container = document.getElementById('movesListContainer');
+  if (!container) return;
+  
+  let html = '<div class="move-row"><div class="move-number">#</div><div class="move-number">WHITE</div><div class="move-number">BLACK</div></div>';
+  
+  for (let i = 0; i < history.length; i += 2) {
+    const moveNum = Math.floor(i / 2) + 1;
+    const whiteMove = history[i];
+    const blackMove = history[i + 1];
+    const whiteQuality = moveQualities[i] || '';
+    const blackQuality = moveQualities[i + 1] || '';
+    
+    html += `
+      <div class="move-row">
+        <div class="move-number">${moveNum}.</div>
+        <div class="move-san ${whiteQuality}" onclick="goToMove(${i + 1})">${whiteMove.san}</div>
+        ${blackMove ? `<div class="move-san ${blackQuality}" onclick="goToMove(${i + 2})">${blackMove.san}</div>` : '<div class="move-number">—</div>'}
+      </div>
+    `;
+  }
+  
+  container.innerHTML = html;
+}
+
+function updateMoveListDisplay() {
+  const moves = document.querySelectorAll('.move-san');
+  moves.forEach(m => m.classList.remove('active'));
+  const activeMove = document.querySelector(`.move-san[onclick="goToMove(${currentMoveIndex})"]`);
+  if (activeMove) activeMove.classList.add('active');
+}
+
+function updateStats() {
+  const whiteQualities = moveQualities.filter((_, i) => i % 2 === 0);
+  const blackQualities = moveQualities.filter((_, i) => i % 2 === 1);
+  
+  const count = (arr, type) => arr.filter(q => q === type).length;
+  
+  const stats = {
+    best: count(moveQualities, 'best'),
+    mistake: count(moveQualities, 'mistake'),
+    blunder: count(moveQualities, 'blunder')
+  };
+  
+  const accuracyWhite = calculateAccuracy(whiteQualities);
+  const accuracyBlack = calculateAccuracy(blackQualities);
+  
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-label">🎯 BEST MOVES</div><div class="stat-value" style="color:#0feba0">${stats.best}</div></div>
+    <div class="stat-card"><div class="stat-label">⚠️ MISTAKES</div><div class="stat-value" style="color:#ff9f4a">${stats.mistake}</div></div>
+    <div class="stat-card"><div class="stat-label">💥 BLUNDERS</div><div class="stat-value" style="color:#ff6b6b">${stats.blunder}</div></div>
+    <div class="stat-card"><div class="stat-label">📊 TOTAL MOVES</div><div class="stat-value" style="color:#6bcbff">${moveQualities.length}</div></div>
+  `;
+  
+  document.getElementById('whiteAccVal').innerHTML = accuracyWhite + '%';
+  document.getElementById('blackAccVal').innerHTML = accuracyBlack + '%';
+  document.getElementById('whiteAccBar').style.width = accuracyWhite + '%';
+  document.getElementById('blackAccBar').style.width = accuracyBlack + '%';
+}
+
+function calculateAccuracy(qualities) {
+  if (qualities.length === 0) return 100;
+  const scores = qualities.map(q => {
+    if (q === 'best') return 100;
+    if (q === 'good') return 85;
+    if (q === 'mistake') return 50;
+    return 20;
+  });
+  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+}
+
+function updateMoveCounter() {
+  const counter = document.getElementById('moveCounterDisplay');
+  if (counter) counter.innerHTML = `Move ${currentMoveIndex}/${positions.length - 1}`;
+}
+
+function goToMove(index) {
+  if (!positions.length) return;
+  index = Math.max(0, Math.min(positions.length - 1, index));
+  currentMoveIndex = index;
+  renderBoard(positions[currentMoveIndex]);
+  updateMoveCounter();
+  updateMoveListDisplay();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  
+  if (tab === 'stats') {
+    document.querySelector('.tab').classList.add('active');
+    document.getElementById('statsTab').classList.add('active');
+  } else {
+    document.querySelectorAll('.tab')[1].classList.add('active');
+    document.getElementById('movesTab').classList.add('active');
+  }
+}
+
+function showError(msg) {
+  const errorDiv = document.getElementById('errorMsg');
+  errorDiv.innerHTML = '⚠️ ' + msg;
+  errorDiv.style.display = 'block';
+  setTimeout(() => errorDiv.style.display = 'none', 5000);
+}
+
+function hideError() {
+  document.getElementById('errorMsg').style.display = 'none';
+}
+
+function showLoading(show) {
+  const btn = document.querySelector('.search-box button');
+  if (show) {
+    btn.innerHTML = '⏳ LOADING...';
+    btn.disabled = true;
+  } else {
+    btn.innerHTML = '📊 FETCH GAMES';
+    btn.disabled = false;
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (!positions.length) return;
+  if (e.key === 'ArrowLeft') goToMove(currentMoveIndex - 1);
+  if (e.key === 'ArrowRight') goToMove(currentMoveIndex + 1);
+  if (e.key === 'Home') goToMove(0);
+  if (e.key === 'End') goToMove(positions.length - 1);
+});
+
+// Initial render
+document.getElementById('statusText').innerHTML = 'Ready';
+</script>
+</body>
+</html>
