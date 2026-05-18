@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>ChessLens — Game Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a25;
+    --surface3: #22222f;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --accent: #7c6af7;
+    --accent2: #a89ef9;
+    --accent-dim: rgba(124,106,247,0.15);
+    --green: #3dd68c;
+    --red: #f96060;
+    --yellow: #f0c040;
+    --blue: #60b8f9;
+    --text: #e8e6ff;
+    --muted: #7a7899;
+    --muted2: #4a4868;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG grid */
+  body::before {
+    content:'';
+    position:fixed; top:0; left:0; right:0; bottom:0;
+    background-image: linear-gradient(rgba(124,106,247,0.03) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(124,106,247,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index:0;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 16px; position:relative; z-index:1; }
+
+  /* HEADER */
+  header {
+    padding: 24px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .header-inner { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo-icon {
+    width:36px; height:36px; border-radius:10px;
+    background: var(--accent); display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+  }
+  .logo-text { font-size:18px; font-weight:800; letter-spacing:-0.5px; }
+  .logo-text span { color: var(--accent2); }
+  .tagline { font-size:10px; color:var(--muted); font-family:'Space Mono',monospace; margin-top:2px; }
+
+  /* SEARCH */
+  .search-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .search-label { font-size:12px; color:var(--muted); font-family:'Space Mono',monospace; margin-bottom:8px; letter-spacing:1px; text-transform:uppercase; }
+  .search-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .search-input {
+    flex:1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 160px;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted2); font-weight:400; }
+  .search-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .search-btn:hover { opacity:0.9; }
+  .search-btn:active { transform: scale(0.97); }
+  .search-btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+  /* GAMES LIST */
+  .section-title {
+    font-size:12px; color:var(--muted); font-family:'Space Mono',monospace;
+    letter-spacing:1px; text-transform:uppercase; margin-bottom:14px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .games-grid { display:flex; flex-direction:column; gap:10px; margin-bottom:28px; }
+
+  .game-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .game-card:hover { border-color: var(--border2); background: var(--surface2); }
+  .game-card.active { border-color: var(--accent); background: var(--accent-dim); }
+
+  .game-result-badge {
+    width:48px; height:48px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; font-family:'Space Mono',monospace;
+    flex-shrink:0;
+  }
+  .badge-win { background:rgba(61,214,140,0.15); color:var(--green); border:1px solid rgba(61,214,140,0.3); }
+  .badge-loss { background:rgba(249,96,96,0.15); color:var(--red); border:1px solid rgba(249,96,96,0.3); }
+  .badge-draw { background:rgba(240,192,64,0.15); color:var(--yellow); border:1px solid rgba(240,192,64,0.3); }
+
+  .game-info { flex:1; min-width:0; }
+  .game-players { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .game-players .vs { color:var(--muted2); font-weight:400; margin:0 5px; }
+  .game-meta { font-size:11px; color:var(--muted); font-family:'Space Mono',monospace; margin-top:4px; }
+
+  .game-elos { display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+  .elo-row { display:flex; align-items:center; gap:5px; font-size:11px; font-family:'Space Mono',monospace; }
+  .elo-label { color:var(--muted2); }
+  .elo-val { font-weight:700; color:var(--accent2); }
+
+  .analyze-btn-sm {
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--accent2);
+    padding: 7px 12px;
+    font-family: 'Syne',sans-serif;
+    font-size:11px; font-weight:700;
+    cursor:pointer; white-space:nowrap;
+    transition: all 0.2s;
+  }
+  .analyze-btn-sm:hover { background:var(--accent-dim); border-color:var(--accent); }
+  .analyze-btn-sm:disabled { opacity:0.4; cursor:not-allowed; }
+
+  /* ANALYSIS PANEL */
+  .analysis-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom:28px;
+  }
+
+  .analysis-header {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+  .analysis-game-title { font-size:14px; font-weight:700; }
+  .analysis-game-sub { font-size:11px; color:var(--muted); font-family:'Space Mono',monospace; margin-top:3px; }
+
+  /* MOBILE-FIRST BOARD */
+  .analysis-body { display:flex; flex-direction:column; }
+  @media (min-width: 768px) {
+    .analysis-body { flex-direction:row; }
+    .right-col { padding:20px 20px 20px 0; }
+    .board-col { padding:20px; }
+  }
+
+  .board-col { padding:16px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; }
+  .board-wrap {
+    position:relative;
+    width:100%; max-width:360px;
+    aspect-ratio: 1 / 1;
+    border-radius:8px;
+    overflow:hidden;
+    border:2px solid var(--border2);
+  }
+  #chessboard {
+    display:grid; grid-template-columns:repeat(8,1fr); width:100%; height:100%;
+  }
+  .sq {
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(20px, 8vw, 34px);
+    cursor:pointer; position:relative;
+    user-select:none;
+    transition: background 0.15s;
+  }
+  .sq.light { background:#c8b9e8; }
+  .sq.dark  { background:#6750a4; }
+  .sq.highlight { outline:3px solid var(--accent) inset; }
+  .sq.last-move-from { background: rgba(240,192,64,0.4) !important; }
+  .sq.last-move-to   { background: rgba(240,192,64,0.55) !important; }
+  .sq.best-move { background: rgba(61,214,140,0.4) !important; }
+
+  .coord-file {
+    display:flex; width:100%; max-width:360px; margin-top:4px;
+  }
+  .coord-file span { flex:1; text-align:center; font-size:9px; color:var(--muted2); font-family:'Space Mono',monospace; }
+
+  .board-controls {
+    display:flex; align-items:center; gap:8px; margin-top:12px;
+    flex-wrap:wrap; justify-content:center;
+  }
+  .ctrl-btn {
+    background:var(--surface2); border:1px solid var(--border2);
+    border-radius:7px; color:var(--text); padding:6px 12px;
+    font-family:'Space Mono',monospace; font-size:12px; cursor:pointer;
+    transition: all 0.15s;
+  }
+  .ctrl-btn:hover { background:var(--surface3); border-color:var(--accent); }
+  .move-counter { font-size:12px; font-family:'Space Mono',monospace; color:var(--muted); flex:1; text-align:center; }
+
+  .right-col { flex:1; padding:0 16px 20px 16px; min-width:0; overflow:hidden; }
+
+  /* ELO SECTION */
+  .elo-section {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 14px;
+  }
+  .elo-players { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .elo-player { text-align:center; flex:1; }
+  .elo-player-name { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .elo-player-rating { font-size:18px; font-weight:800; font-family:'Space Mono',monospace; }
+  .elo-vs { font-size:11px; color:var(--muted2); flex-shrink:0; }
+  .elo-expected {
+    margin-top:8px; padding-top:8px; border-top:1px solid var(--border);
+    display:flex; gap:10px; justify-content:space-between; flex-wrap:wrap;
+  }
+  .elo-exp-item { font-size:10px; color:var(--muted); font-family:'Space Mono',monospace; text-align:center; }
+  .elo-exp-item span { display:block; color:var(--text); font-size:13px; font-weight:700; margin-top:2px; }
+
+  /* TABS */
+  .tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .tab-btn {
+    background:transparent; border:1px solid var(--border);
+    border-radius:7px; color:var(--muted); padding:5px 12px;
+    font-family:'Syne',sans-serif; font-size:12px; font-weight:600; cursor:pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { border-color:var(--border2); color:var(--text); }
+  .tab-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent2); }
+
+  /* EVAL BAR */
+  .eval-section { margin-bottom:16px; }
+  .eval-label-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .eval-label { font-size:11px; font-family:'Space Mono',monospace; color:var(--muted); }
+  .eval-value { font-size:14px; font-weight:700; font-family:'Space Mono',monospace; }
+  .eval-value.pos { color:var(--text); }
+  .eval-value.neg { color:var(--muted); }
+  .eval-bar-outer { height:10px; background:var(--surface3); border-radius:5px; overflow:hidden; }
+  .eval-bar-inner { height:100%; background:linear-gradient(90deg, var(--accent), var(--accent2)); transition:width 0.3s; border-radius:5px; }
+
+  /* MOVE QUALITY */
+  .move-quality {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700;
+    font-family:'Space Mono',monospace; margin-bottom:12px;
+  }
+  .mq-best    { background:rgba(61,214,140,0.15); color:var(--green); }
+  .mq-good    { background:rgba(96,184,249,0.15); color:var(--blue); }
+  .mq-inaccuracy { background:rgba(240,192,64,0.15); color:var(--yellow); }
+  .mq-mistake { background:rgba(249,150,60,0.15); color:#f9963c; }
+  .mq-blunder { background:rgba(249,96,96,0.15); color:var(--red); }
+
+  /* BEST MOVE */
+  .best-move-box {
+    background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+    padding:12px; margin-bottom:14px;
+  }
+  .bm-label { font-size:10px; color:var(--muted); font-family:'Space Mono',monospace; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px; }
+  .bm-move { font-size:18px; font-weight:700; font-family:'Space Mono',monospace; color:var(--green); word-break:break-all; }
+  .bm-depth { font-size:10px; color:var(--muted); margin-top:3px; }
+
+  /* STATS */
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .stat-card {
+    background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px;
+  }
+  .stat-label { font-size:9px; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px; }
+  .stat-value { font-size:16px; font-weight:700; }
+  .stat-value.green { color:var(--green); }
+  .stat-value.red   { color:var(--red); }
+  .stat-value.yellow{ color:var(--yellow); }
+  .stat-value.blue  { color:var(--blue); }
+
+  /* MOVES LIST */
+  .moves-title { font-size:10px; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+  .moves-scroll {
+    max-height:200px; overflow-y:auto; background:var(--surface2);
+    border:1px solid var(--border); border-radius:8px; padding:6px;
+  }
+  .moves-scroll::-webkit-scrollbar { width:4px; }
+  .move-row { display:flex; align-items:center; gap:4px; padding:2px 0; }
+  .move-num { font-size:10px; color:var(--muted2); font-family:'Space Mono',monospace; width:22px; }
+  .move-san {
+    font-size:11px; font-family:'Space Mono',monospace; cursor:pointer;
+    padding:2px 6px; border-radius:4px; transition:background 0.15s;
+    flex:1;
+  }
+  .move-san:hover { background:var(--surface3); }
+  .move-san.active { background:var(--accent-dim); color:var(--accent2); }
+  .move-san.blunder { color:var(--red); }
+  .move-san.mistake { color:#f9963c; }
+  .move-san.inaccuracy { color:var(--yellow); }
+  .move-san.best { color:var(--green); }
+
+  /* CHART */
+  .chart-section { margin-bottom:14px; }
+  .chart-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px; }
+  .chart-canvas-wrap { height:70px; position:relative; }
+
+  /* ACCURACY */
+  .accuracy-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .accuracy-label { font-size:10px; color:var(--muted); font-family:'Space Mono',monospace; width:45px; flex-shrink:0; }
+  .accuracy-bar-wrap { flex:1; height:5px; background:var(--surface3); border-radius:3px; overflow:hidden; }
+  .accuracy-bar-fill { height:100%; border-radius:3px; transition:width 0.4s; }
+  .accuracy-val { font-size:10px; font-family:'Space Mono',monospace; color:var(--accent2); width:36px; text-align:right; flex-shrink:0; }
+
+  /* LOADING */
+  .placeholder {
+    text-align:center; padding:40px 20px;
+  }
+  .placeholder-icon { font-size:40px; margin-bottom:12px; }
+  .placeholder-text { color:var(--muted); font-size:13px; }
+
+  .spinner {
+    width:24px; height:24px; border:2px solid var(--border2);
+    border-top-color:var(--accent); border-radius:50%;
+    animation: spin 0.7s linear infinite;
+    display:inline-block;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .error-box {
+    background:rgba(249,96,96,0.1); border:1px solid rgba(249,96,96,0.3);
+    border-radius:10px; padding:12px 16px; color:var(--red);
+    font-size:12px; font-family:'Space Mono',monospace;
+    margin-bottom:20px;
+  }
+
+  .engine-status {
+    display:flex; align-items:center; gap:6px;
+    font-size:10px; font-family:'Space Mono',monospace; color:var(--muted);
+  }
+  .engine-dot { width:6px; height:6px; border-radius:50%; }
+  .engine-dot.ready { background:var(--green); box-shadow:0 0 5px var(--green); }
+  .engine-dot.loading { background:var(--yellow); animation: pulse 1s infinite; }
+  .engine-dot.error { background:var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">♟</div>
+        <div>
+          <div class="logo-text">Chess<span>Lens</span></div>
+          <div class="tagline">// AI-powered analysis</div>
+        </div>
+      </div>
+      <div class="engine-status">
+        <div class="engine-dot loading" id="engineDot"></div>
+        <span id="engineStatus">Loading engine...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- SEARCH -->
+  <div class="search-area">
+    <div class="search-label">Chess.com Username</div>
+    <div class="search-row">
+      <input type="text" class="search-input" id="usernameInput" placeholder="e.g. magnuscarlsen, hikaru" pattern="[a-zA-Z0-9_-]+" autocomplete="off" />
+      <button class="search-btn" id="fetchBtn">Fetch Games →</button>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-box" id="errorBox" style="display:none;"></div>
+
+  <!-- GAMES LIST -->
+  <div id="gamesSection" style="display:none;">
+    <div class="section-title">Last 5 Completed Games</div>
+    <div class="games-grid" id="gamesList"></div>
+  </div>
+
+  <!-- ANALYSIS PANEL -->
+  <div class="analysis-panel" id="analysisPanel" style="display:none;">
+    <div class="analysis-header">
+      <div>
+        <div class="analysis-game-title" id="analysisTitleEl">—</div>
+        <div class="analysis-game-sub" id="analysisSubEl">—</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div id="engineLoadingSpinner" style="display:none;"><div class="spinner"></div></div>
+        <span id="engineProgressText" style="font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);"></span>
+      </div>
+    </div>
+    <div class="analysis-body">
+      <div class="board-col">
+        <div style="position:relative; display:flex; flex-direction:column; align-items:center;">
+          <div class="board-wrap">
+            <div id="chessboard"></div>
+          </div>
+          <div class="coord-file" id="coordFile"></div>
+        </div>
+        <div class="board-controls">
+          <button class="ctrl-btn" onclick="gotoMove(0)">«</button>
+          <button class="ctrl-btn" onclick="gotoMove(currentMoveIdx-1)">‹</button>
+          <div class="move-counter" id="moveCounter">0 / 0</div>
+          <button class="ctrl-btn" onclick="gotoMove(currentMoveIdx+1)">›</button>
+          <button class="ctrl-btn" onclick="gotoMove(positions.length-1)">»</button>
+        </div>
+      </div>
+
+      <div class="right-col">
+        <div class="elo-section" id="eloSection" style="display:none;">
+          <div class="elo-players">
+            <div class="elo-player">
+              <div class="elo-player-name" id="whiteNameEl">—</div>
+              <div class="elo-player-rating white-elo" id="whiteEloEl">—</div>
+              <div style="font-size:9px;color:var(--muted2);margin-top:2px;">⬜ White</div>
+            </div>
+            <div class="elo-vs">vs</div>
+            <div class="elo-player">
+              <div class="elo-player-name" id="blackNameEl">—</div>
+              <div class="elo-player-rating black-elo" id="blackEloEl">—</div>
+              <div style="font-size:9px;color:var(--muted2);margin-top:2px;">⬛ Black</div>
+            </div>
+          </div>
+          <div class="elo-expected">
+            <div class="elo-exp-item">Expected (W)<span id="expectedWhiteEl">—</span></div>
+            <div class="elo-exp-item">Expected (B)<span id="expectedBlackEl">—</span></div>
+            <div class="elo-exp-item">Diff<span id="eloDiffEl">—</span></div>
+            <div class="elo-exp-item">Time<span id="timeControlEl">—</span></div>
+          </div>
+        </div>
+
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('eval')">Evaluation</button>
+          <button class="tab-btn" onclick="switchTab('moves')">Moves</button>
+          <button class="tab-btn" onclick="switchTab('stats')">Stats</button>
+        </div>
+
+        <div id="tabEval">
+          <div class="eval-section">
+            <div class="eval-label-row">
+              <span class="eval-label">Engine Evaluation</span>
+              <span class="eval-value" id="evalDisplay">—</span>
+            </div>
+            <div class="eval-bar-outer">
+              <div class="eval-bar-inner" id="evalBar" style="width:50%"></div>
+            </div>
+          </div>
+          <div id="moveQualityEl" style="display:none;" class="move-quality"></div>
+          <div class="best-move-box">
+            <div class="bm-label">Best Move (Stockfish)</div>
+            <div class="bm-move" id="bestMoveEl">Analyzing...</div>
+            <div class="bm-depth" id="depthEl"></div>
+          </div>
+          <div class="chart-section">
+            <div class="chart-wrap">
+              <div class="chart-canvas-wrap">
+                <canvas id="evalChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tabMoves" style="display:none;">
+          <div class="moves-title">Move List</div>
+          <div class="moves-scroll" id="movesList"></div>
+        </div>
+
+        <div id="tabStats" style="display:none;">
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="stat-label">Best Moves</div><div class="stat-value green" id="stBest">—</div></div>
+            <div class="stat-card"><div class="stat-label">Inaccuracies</div><div class="stat-value yellow" id="stInaccuracy">—</div></div>
+            <div class="stat-card"><div class="stat-label">Mistakes</div><div class="stat-value" style="color:#f9963c" id="stMistake">—</div></div>
+            <div class="stat-card"><div class="stat-label">Blunders</div><div class="stat-value red" id="stBlunder">—</div></div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div class="moves-title">Accuracy</div>
+            <div class="accuracy-row">
+              <div class="accuracy-label">⬜ White</div>
+              <div class="accuracy-bar-wrap"><div class="accuracy-bar-fill" id="accWhiteBar" style="background:var(--accent);width:0%"></div></div>
+              <div class="accuracy-val" id="accWhiteVal">—</div>
+            </div>
+            <div class="accuracy-row">
+              <div class="accuracy-label">⬛ Black</div>
+              <div class="accuracy-bar-wrap"><div class="accuracy-bar-fill" id="accBlackBar" style="background:var(--muted);width:0%"></div></div>
+              <div class="accuracy-val" id="accBlackVal">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="height:40px;"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const PIECES = { wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙', bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟' };
+
+let games = [], currentGame = null, positions = [], moveEvals = [];
+let currentMoveIdx = 0, stockfishWorker = null, engineReady = false;
+let evalHistory = [], activeTab = 'eval';
+let evalChart = null, analysisAborted = false;
+let moveQualities = [];
+
+function initStockfish() {
+  try {
+    stockfishWorker = new Worker('https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.js');
+    stockfishWorker.onmessage = onStockfishMessage;
+    stockfishWorker.onerror = () => setEngineStatus('error','Engine error');
+    stockfishWorker.postMessage('uci');
+  } catch(e) {
+    setEngineStatus('error','Engine failed');
+  }
+}
+
+let sfResolver = null;
+function onStockfishMessage(e) {
+  const line = e.data;
+  if (line === 'uciok') { stockfishWorker.postMessage('isready'); return; }
+  if (line === 'readyok') { engineReady = true; setEngineStatus('ready','Ready'); return; }
+  if (sfResolver) sfResolver(line);
+}
+
+function setEngineStatus(state, msg) {
+  document.getElementById('engineDot').className = 'engine-dot ' + state;
+  document.getElementById('engineStatus').textContent = msg;
+}
+
+async function engineEval(fen, depth=13) {
+  if (!engineReady) return null;
+  return new Promise(resolve => {
+    let bestEval = null, bestMove = null;
+    const timeout = setTimeout(() => resolve({eval:bestEval, move:bestMove}), 5000);
+    sfResolver = line => {
+      if (line.startsWith('info depth')) {
+        const m = line.match(/score (cp|mate) (-?\d+)/);
+        const bm = line.match(/pv (\S+)/);
+        if (m) bestEval = m[1]==='cp' ? parseInt(m[2])/100 : (parseInt(m[2])>0?999:-999);
+        if (bm) bestMove = bm[1];
+      }
+      if (line.startsWith('bestmove')) {
+        const parts = line.split(' ');
+        bestMove = parts[1] !== '(none)' ? parts[1] : bestMove;
+        clearTimeout(timeout);
+        sfResolver = null;
+        resolve({eval:bestEval, move:bestMove});
+      }
+    };
+    stockfishWorker.postMessage(`position fen ${fen}`);
+    stockfishWorker.postMessage(`go depth ${depth}`);
+  });
+}
+
+async function fetchGames() {
+  let username = document.getElementById('usernameInput').value.trim().toLowerCase();
+  if (!username) { showError('Please enter a username'); return; }
+  if (!/^[a-z0-9_-]+$/i.test(username)) { showError('Username can only contain letters, numbers, underscore, and hyphen'); return; }
+
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('gamesSection').style.display = 'none';
+  document.getElementById('analysisPanel').style.display = 'none';
+  btn.textContent = 'Fetching...';
+
+  try {
+    const archivesRes = await fetch(`https://api.chess.com/pub/player/${username}/games/archives`);
+    if (!archivesRes.ok) throw new Error(`User "${username}" not found`);
+    const archivesData = await archivesRes.json();
+    const archives = archivesData.archives;
+    if (!archives || archives.length === 0) throw new Error('No game archives found');
+
+    let collected = [];
+    for (let i = archives.length - 1; i >= 0 && collected.length < 5; i--) {
+      const gRes = await fetch(archives[i]);
+      if (!gRes.ok) continue;
+      const gData = await gRes.json();
+      const finished = (gData.games || []).filter(g =>
+        g.pgn && g.rules === 'chess' && g.white && g.black &&
+        ['win','loss','draw','agreed','stalemate','insufficient','repetition','timeout','resigned','checkmated','timevsinsufficient','50move'].includes(g.white.result || g.black.result)
+      );
+      collected = [...finished.reverse(), ...collected];
+    }
+    collected = collected.slice(-5).reverse();
+    if (collected.length === 0) throw new Error('No completed standard games found');
+    games = collected.slice(0,5);
+    renderGamesList(username);
+  } catch(err) {
+    showError(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch Games →';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+function renderGamesList(username) {
+  const container = document.getElementById('gamesList');
+  container.innerHTML = '';
+  games.forEach((g, idx) => {
+    const isWhite = g.white.username.toLowerCase() === username;
+    const me = isWhite ? g.white : g.black;
+    const opp = isWhite ? g.black : g.white;
+    const myResult = me.result;
+    const outcome = myResult === 'win' ? 'WIN' : (myResult === 'draw'||myResult==='agreed'||myResult==='repetition'||myResult==='stalemate'||myResult==='insufficient'||myResult==='50move'||myResult==='timevsinsufficient') ? 'DRAW' : 'LOSS';
+    const badgeClass = outcome==='WIN'?'badge-win':outcome==='LOSS'?'badge-loss':'badge-draw';
+    const whiteElo = g.white.rating || '?';
+    const blackElo = g.black.rating || '?';
+    const date = g.end_time ? new Date(g.end_time*1000).toLocaleDateString() : '—';
+    const tc = g.time_class || '—';
+    const card = document.createElement('div');
+    card.className = 'game-card';
+    card.innerHTML = `
+      <div class="game-result-badge ${badgeClass}">${outcome}</div>
+      <div class="game-info">
+        <div class="game-players">
+          <span style="color:${outcome==='WIN'?'var(--green)':outcome==='LOSS'?'var(--red)':'var(--yellow)'}">
+            ${escapeHtml(me.username)} (${me.rating||'?'})
+          </span>
+          <span class="vs">vs</span>
+          <span style="color:var(--muted)">${escapeHtml(opp.username)} (${opp.rating||'?'})</span>
+        </div>
+        <div class="game-meta">${tc} · ${date} · ${isWhite?'⬜ White':'⬛ Black'}</div>
+      </div>
+      <div class="game-elos">
+        <div class="elo-row"><span class="elo-label">⬜</span><span class="elo-val">${whiteElo}</span></div>
+        <div class="elo-row"><span class="elo-label">⬛</span><span class="elo-val">${blackElo}</span></div>
+      </div>
+      <button class="analyze-btn-sm" onclick="startAnalysis(${idx}, event)">Analyze ▶</button>
+    `;
+    card.onclick = (e) => { if (!e.target.classList.contains('analyze-btn-sm')) selectGame(idx, card); };
+    container.appendChild(card);
+  });
+  document.getElementById('gamesSection').style.display = 'block';
+}
+
+function selectGame(idx, card) {
+  document.querySelectorAll('.game-card').forEach(c=>c.classList.remove('active'));
+  card.classList.add('active');
+}
+
+async function startAnalysis(idx, ev) {
+  if (ev) ev.stopPropagation();
+  analysisAborted = false;
+  currentGame = games[idx];
+  document.querySelectorAll('.game-card').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.game-card')[idx].classList.add('active');
+
+  const chess = new Chess();
+  if (!chess.load_pgn(currentGame.pgn)) { showError('Failed to parse PGN'); return; }
+
+  const hist = chess.history({verbose:true});
+  positions = ['rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'];
+  const c2 = new Chess();
+  for (const move of hist) { c2.move(move); positions.push(c2.fen()); }
+  currentMoveIdx = 0;
+  evalHistory = [];
+  moveQualities = [];
+  moveEvals = [];
+
+  updateAnalysisHeader(currentGame);
+  setupEloSection(currentGame);
+  renderBoard(positions[0]);
+  updateMovesList(hist, []);
+  document.getElementById('analysisPanel').style.display = 'block';
+  document.getElementById('analysisPanel').scrollIntoView({behavior:'smooth', block:'start'});
+  await runAnalysis(hist, currentGame);
+}
+
+function updateAnalysisHeader(g) {
+  document.getElementById('analysisTitleEl').textContent = `${g.white.username} vs ${g.black.username}`;
+  const date = g.end_time ? new Date(g.end_time*1000).toLocaleDateString() : '';
+  document.getElementById('analysisSubEl').textContent = `${g.time_class||'—'} · ${date} · ${g.white.result==='win'?g.white.username+' won':g.black.result==='win'?g.black.username+' won':'Draw'}`;
+}
+
+function setupEloSection(g) {
+  document.getElementById('whiteNameEl').textContent = g.white.username;
+  document.getElementById('blackNameEl').textContent = g.black.username;
+  document.getElementById('whiteEloEl').textContent = g.white.rating || '?';
+  document.getElementById('blackEloEl').textContent = g.black.rating || '?';
+  if (g.white.rating && g.black.rating) {
+    const expW = (1/(1+Math.pow(10,(g.black.rating-g.white.rating)/400))*100).toFixed(1);
+    document.getElementById('expectedWhiteEl').textContent = expW+'%';
+    document.getElementById('expectedBlackEl').textContent = (100-expW).toFixed(1)+'%';
+    const diff = g.white.rating - g.black.rating;
+    document.getElementById('eloDiffEl').textContent = (diff>0?'+':'')+diff;
+  } else {
+    document.getElementById('expectedWhiteEl').textContent='?';
+    document.getElementById('expectedBlackEl').textContent='?';
+    document.getElementById('eloDiffEl').textContent='?';
+  }
+  document.getElementById('timeControlEl').textContent = g.time_control || g.time_class || '?';
+  document.getElementById('eloSection').style.display = 'block';
+}
+
+async function runAnalysis(hist, game) {
+  if (!engineReady) { document.getElementById('bestMoveEl').textContent = 'Engine not ready'; return; }
+  document.getElementById('engineLoadingSpinner').style.display = 'block';
+  document.getElementById('engineProgressText').textContent = '0/' + positions.length;
+
+  const depths = positions.length > 40 ? 12 : 14;
+  let prevEval = 0;
+
+  for (let i = 0; i < positions.length; i++) {
+    if (analysisAborted) break;
+    document.getElementById('engineProgressText').textContent = `${i}/${positions.length}`;
+    const res = await engineEval(positions[i], depths);
+    const ev = res ? res.eval : 0;
+    evalHistory.push(ev);
+    moveEvals.push({eval: ev, bestMove: res ? res.move : null});
+    if (i > 0) {
+      const delta = Math.abs(ev - prevEval);
+      let quality;
+      if (delta < 0.2) quality = 'best';
+      else if (delta < 0.5) quality = 'good';
+      else if (delta < 1.0) quality = 'inaccuracy';
+      else if (delta < 2.0) quality = 'mistake';
+      else quality = 'blunder';
+      moveQualities.push(quality);
+    }
+    prevEval = ev;
+    updateEvalChart(evalHistory);
+    if (i === currentMoveIdx) updateEvalUI(i);
+    updateMovesList(hist, moveQualities);
+    await new Promise(r=>setTimeout(r,0));
+  }
+  document.getElementById('engineLoadingSpinner').style.display = 'none';
+  document.getElementById('engineProgressText').textContent = '✓ Complete';
+  updateStats(hist, moveQualities, game);
+}
+
+function renderBoard(fen) {
+  const board = document.getElementById('chessboard');
+  board.innerHTML = '';
+  const c = new Chess(fen);
+  const b = c.board();
+  for (let rank = 0; rank < 8; rank++) {
+    for (let file = 0; file < 8; file++) {
+      const sq = document.createElement('div');
+      const isLight = (rank+file)%2===0;
+      sq.className = 'sq ' + (isLight?'light':'dark');
+      const piece = b[rank][file];
+      if (piece) sq.textContent = PIECES[piece.color + piece.type.toUpperCase()] || '';
+      sq.dataset.rank = rank;
+      sq.dataset.file = file;
+      board.appendChild(sq);
+    }
+  }
+  const cf = document.getElementById('coordFile');
+  cf.innerHTML = '';
+  'abcdefgh'.split('').forEach(f=>{ const s=document.createElement('span');s.textContent=f;cf.appendChild(s); });
+}
+
+function renderBoardWithHighlights(fen, fromSq, toSq, bestSq) {
+  renderBoard(fen);
+  const sqs = document.querySelectorAll('.sq');
+  sqs.forEach(sq => {
+    const r = parseInt(sq.dataset.rank);
+    const f = parseInt(sq.dataset.file);
+    const sqName = 'abcdefgh'[f] + (8-r);
+    if (fromSq && sqName===fromSq) sq.classList.add('last-move-from');
+    if (toSq && sqName===toSq) sq.classList.add('last-move-to');
+    if (bestSq && sqName===bestSq) sq.classList.add('best-move');
+  });
+}
+
+function gotoMove(idx) {
+  if (!positions.length) return;
+  idx = Math.max(0, Math.min(positions.length-1, idx));
+  currentMoveIdx = idx;
+  const chess = new Chess();
+  chess.load_pgn(currentGame.pgn);
+  const hist = chess.history({verbose:true});
+  const from = idx>0 ? hist[idx-1].from : null;
+  const to = idx>0 ? hist[idx-1].to : null;
+  const bm = moveEvals[idx] ? moveEvals[idx].bestMove : null;
+  const bmTo = bm ? bm.slice(2,4) : null;
+  renderBoardWithHighlights(positions[idx], from, to, bmTo);
+  document.getElementById('moveCounter').textContent = `${idx} / ${positions.length-1}`;
+  updateEvalUI(idx);
+  highlightMoveInList(idx);
+}
+
+function updateEvalUI(idx) {
+  if (!moveEvals[idx]) return;
+  const ev = moveEvals[idx].eval;
+  const bm = moveEvals[idx].bestMove;
+  if (ev === null) return;
+  const isWhiteTurn = idx%2===0;
+  const score = isWhiteTurn ? ev : -ev;
+  const pct = Math.max(5, Math.min(95, 50 + score*5));
+  document.getElementById('evalBar').style.width = pct+'%';
+  const evalDisplay = document.getElementById('evalDisplay');
+  if (Math.abs(ev)>=99) {
+    evalDisplay.textContent = ev>0?'M+':'M-';
+    evalDisplay.className = 'eval-value '+(ev>0?'pos':'neg');
+  } else {
+    evalDisplay.textContent = (ev>0?'+':'')+ev.toFixed(2);
+    evalDisplay.className = 'eval-value '+(ev>=0?'pos':'neg');
+  }
+  if (bm) { document.getElementById('bestMoveEl').textContent = bm; document.getElementById('depthEl').textContent = 'Stockfish analysis'; }
+  if (idx>0 && moveQualities[idx-1]) {
+    const qEl = document.getElementById('moveQualityEl');
+    const q = moveQualities[idx-1];
+    const labels = {best:'✓ Best', good:'● Good', inaccuracy:'? Inaccuracy', mistake:'?! Mistake', blunder:'?? Blunder'};
+    const classes = {best:'mq-best', good:'mq-good', inaccuracy:'mq-inaccuracy', mistake:'mq-mistake', blunder:'mq-blunder'};
+    qEl.textContent = labels[q];
+    qEl.className = 'move-quality ' + classes[q];
+    qEl.style.display = 'inline-flex';
+  } else { document.getElementById('moveQualityEl').style.display='none'; }
+}
+
+function updateMovesList(hist, qualities) {
+  const el = document.getElementById('movesList');
+  let html = '';
+  for (let i=0; i<hist.length; i+=2) {
+    const moveNum = Math.floor(i/2)+1;
+    const wMove = hist[i];
+    const bMove = hist[i+1];
+    const wQ = qualities[i]||'';
+    const bQ = qualities[i+1]||'';
+    const wSym = wQ==='blunder'?'??':wQ==='mistake'?'?!':wQ==='inaccuracy'?'?':'';
+    const bSym = bQ==='blunder'?'??':bQ==='mistake'?'?!':bQ==='inaccuracy'?'?':'';
+    html += `<div class="move-row">
+      <span class="move-num">${moveNum}.</span>
+      <span class="move-san ${wQ}" data-idx="${i+1}" onclick="gotoMove(${i+1})">${wMove.san}${wSym}</span>
+      ${bMove?`<span class="move-san ${bQ}" data-idx="${i+2}" onclick="gotoMove(${i+2})">${bMove.san}${bSym}</span>`:''}
+    </div>`;
+  }
+  el.innerHTML = html;
+  highlightMoveInList(currentMoveIdx);
+}
+
+function highlightMoveInList(idx) {
+  document.querySelectorAll('.move-san').forEach(el=>el.classList.remove('active'));
+  const active = document.querySelector(`.move-san[data-idx="${idx}"]`);
+  if (active) { active.classList.add('active'); active.scrollIntoView({block:'nearest'}); }
+}
+
+function updateEvalChart(evals) {
+  const canvas = document.getElementById('evalChart');
+  const clamped = evals.map(e=>Math.max(-8,Math.min(8,e||0)));
+  const labels = evals.map((_,i)=>i);
+  if (evalChart) {
+    evalChart.data.labels = labels;
+    evalChart.data.datasets[0].data = clamped;
+    evalChart.update('none');
+    return;
+  }
+  evalChart = new Chart(canvas, {
+    type:'line',
+    data: { labels, datasets:[{ data: clamped, borderColor:'#7c6af7', fill:true, tension:0.35, pointRadius:0, borderWidth:2 }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false}, y:{min:-8,max:8,ticks:{color:'#4a4868',font:{size:8}}}} }
+  });
+}
+
+function updateStats(hist, qualities, game) {
+  const count = (arr,type)=>arr.filter(q=>q===type).length;
+  document.getElementById('stBest').textContent = count(qualities,'best');
+  document.getElementById('stInaccuracy').textContent = count(qualities,'inaccuracy');
+  document.getElementById('stMistake').textContent = count(qualities,'mistake');
+  document.getElementById('stBlunder').textContent = count(qualities,'blunder');
+  const accuracy = arr => { if(!arr.length) return 100; const pts=arr.map(q=>q==='best'?100:q==='good'?90:q==='inaccuracy'?70:q==='mistake'?40:10); return (pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1); };
+  const whiteQ = qualities.filter((_,i)=>i%2===0);
+  const blackQ = qualities.filter((_,i)=>i%2===1);
+  const wAcc = accuracy(whiteQ), bAcc = accuracy(blackQ);
+  document.getElementById('accWhiteVal').textContent = wAcc+'%';
+  document.getElementById('accBlackVal').textContent = bAcc+'%';
+  document.getElementById('accWhiteBar').style.width = wAcc+'%';
+  document.getElementById('accBlackBar').style.width = bAcc+'%';
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  const tabs = { eval:'tabEval', moves:'tabMoves', stats:'tabStats' };
+  Object.keys(tabs).forEach(t=>{ document.getElementById(tabs[t]).style.display = t===tab?'block':'none'; });
+  document.querySelectorAll('.tab-btn').forEach((btn,i)=> btn.classList.toggle('active', ['eval','moves','stats'][i]===tab));
+}
+
+function escapeHtml(str) { return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+document.addEventListener('keydown', e => {
+  if(positions.length===0) return;
+  if(e.key==='ArrowRight') gotoMove(currentMoveIdx+1);
+  if(e.key==='ArrowLeft') gotoMove(currentMoveIdx-1);
+});
+document.getElementById('usernameInput').addEventListener('keydown', e=>{ if(e.key==='Enter') fetchGames(); });
+
+initStockfish();
+renderBoard('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+document.getElementById('analysisPanel').style.display='none';
+</script>
+</body>
+</html>
